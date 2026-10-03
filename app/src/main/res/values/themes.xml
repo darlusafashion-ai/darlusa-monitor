@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.Material3.DayNight.NoActionBar" parent="Theme.Material3.DayNight.NoActionBar" />
+    <style name="Theme.DarLusaMonitor" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">#2563EB</item>
+        <item name="android:statusBarColor">#1E40AF</item>
+    </style>
 </resources>
