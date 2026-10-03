@@ -33,34 +33,59 @@ class MainActivity : AppCompatActivity() {
         if (!prefs.getString("device_label", "").isNullOrEmpty()) showLock() else showSetup()
     }
 
+    private var tapCount = 0
+    private var lastTap = 0L
+
+    // Locked screen: nothing responds except a hidden 5-tap on the title (Admin only)
     private fun showLock() {
+        tapCount = 0
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(48, 120, 48, 48)
         }
-        root.addView(TextView(this).apply {
-            text = "DarLusa Background Service"
+        val title = TextView(this).apply {
+            text = "DarLusa Monitor"
             textSize = 22f
             setPadding(0, 0, 0, 24)
-        })
+        }
+        root.addView(title)
         root.addView(TextView(this).apply {
-            text = "Huduma hii inafanya kazi. Mipangilio inahitaji PIN ya Admin."
+            text = "DarLusa Monitor inafanya kazi vizuri."
             setPadding(0, 0, 0, 32)
         })
         val pin = EditText(this).apply {
             hint = "Admin PIN"
             inputType = android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_VARIATION_PASSWORD
+            visibility = android.view.View.GONE
         }
-        root.addView(pin)
-        root.addView(Button(this).apply {
+        val open = Button(this).apply {
             text = "Fungua"
+            visibility = android.view.View.GONE
             setOnClickListener {
-                val saved = Prefs.get(this@MainActivity).getString("admin_pin", DEFAULT_PIN) ?: DEFAULT_PIN
-                if (pin.text.toString() == saved) showSetup()
+                val saved = (Prefs.get(this@MainActivity).getString("admin_pin", DEFAULT_PIN) ?: DEFAULT_PIN).trim()
+                val typed = pin.text.toString().filter { it.isDigit() }
+                if (typed == saved || typed == DEFAULT_PIN && saved.isEmpty()) showSetup()
                 else Toast.makeText(this@MainActivity, "PIN si sahihi", Toast.LENGTH_SHORT).show()
             }
-        })
+        }
+        title.setOnClickListener {
+            val now = System.currentTimeMillis()
+            tapCount = if (now - lastTap < 1500) tapCount + 1 else 1
+            lastTap = now
+            if (tapCount >= 5) {
+                pin.visibility = android.view.View.VISIBLE
+                open.visibility = android.view.View.VISIBLE
+                pin.requestFocus()
+            }
+        }
+        root.addView(pin)
+        root.addView(open)
         setContentView(root)
+    }
+
+    override fun onBackPressed() {
+        if (!Prefs.get(this).getString("device_label", "").isNullOrEmpty()) { showLock(); moveTaskToBack(true) }
+        else super.onBackPressed()
     }
 
     private fun showSetup() {
@@ -121,7 +146,7 @@ class MainActivity : AppCompatActivity() {
                         scheduleWork()
                         runOnceNow()
                         refreshStatus()
-                        Toast.makeText(this@MainActivity, "Imeanzishwa", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this@MainActivity, "Imeanzishwa", Toast.LENGTH_SHORT).show(); showLock()
                     }
                 }
             }
@@ -144,7 +169,7 @@ class MainActivity : AppCompatActivity() {
             root.addView(Button(this).apply {
                 text = "Hifadhi PIN mpya"
                 setOnClickListener {
-                    val p = newPin.text.toString()
+                    val p = newPin.text.toString().filter { it.isDigit() }
                     if (p.length in 4..8) {
                         Prefs.get(this@MainActivity).edit().putString("admin_pin", p).apply()
                         Toast.makeText(this@MainActivity, "PIN imebadilishwa", Toast.LENGTH_SHORT).show()
