@@ -35,9 +35,12 @@ class MetricsWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ct
             "com.whatsapp" to "WhatsApp",
             "com.whatsapp.w4b" to "WhatsApp Business",
             "com.zhiliaoapp.musically" to "TikTok",
-            "com.ss.android.ugc.trill" to "TikTok Lite",
+            "com.ss.android.ugc.trill" to "TikTok",
+            "com.zhiliaoapp.musically.go" to "TikTok Lite",
+            "com.tiktok.lite.go" to "TikTok Lite",
             "com.snapchat.android" to "Snapchat",
             "com.instagram.android" to "Instagram",
+            "com.instagram.lite" to "Instagram Lite",
             "com.google.android.youtube" to "YouTube"
         )
     }
@@ -49,12 +52,11 @@ class MetricsWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ct
 
         val tz = TimeZone.getTimeZone("Africa/Dar_es_Salaam")
         val cal = Calendar.getInstance(tz)
-        // Business date = yesterday 08:00 -> today 07:59 in Dar es Salaam
+        // Business date = Dar calendar day 00:00 -> 23:59
         val now = cal.timeInMillis
         val hour = cal.get(Calendar.HOUR_OF_DAY)
         val businessStart = Calendar.getInstance(tz).apply {
-            if (hour < 8) add(Calendar.DAY_OF_YEAR, -1)
-            set(Calendar.HOUR_OF_DAY, 8); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+            set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
         }.timeInMillis
         val businessEnd = businessStart + 24L * 60 * 60 * 1000
 
