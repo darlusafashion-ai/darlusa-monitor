@@ -77,13 +77,15 @@ class MetricsWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ct
             for ((pkg, name) in MONITORED_APPS) {
                 val s = stats[pkg]
                 val fgMs = s?.totalTimeInForeground ?: 0L
-                val mb = queryAppMobileMb(ctx, pkg, businessStart, minOf(businessEnd, now))
-                if (fgMs > 0 || mb > 0) {
+                val mb = queryAppMb(ctx, pkg, ConnectivityManager.TYPE_MOBILE, businessStart, minOf(businessEnd, now))
+                val wifi = queryAppMb(ctx, pkg, ConnectivityManager.TYPE_WIFI, businessStart, minOf(businessEnd, now))
+                if (fgMs > 0 || mb > 0 || wifi > 0) {
                     apps.put(JSONObject().apply {
                         put("package", pkg)
                         put("display_name", name)
                         put("foreground_seconds", fgMs / 1000)
                         put("mobile_mb", mb)
+                        put("wifi_mb", wifi)
                     })
                 }
             }
@@ -104,20 +106,26 @@ class MetricsWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ct
         return if (post(payload)) Result.success() else Result.retry()
     }
 
-    private fun queryAppMobileMb(ctx: Context, pkg: String, start: Long, end: Long): Double {
+    // Android 10+ forbids reading the SIM subscriberId; passing null returns all
+    // traffic of that network type for the app, which is what we want.
+    private fun subIdOrNull(ctx: Context): String? {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) return null
+        return try {
+            if (ActivityCompat.checkSelfPermission(ctx, Manifest.permission.READ_PHONE_STATE) == PackageManager.PERMISSION_GRANTED) {
+                val tm = ctx.getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
+                @Suppress("MissingPermission", "HardwareIds", "DEPRECATION")
+                tm.subscriberId
+            } else null
+        } catch (_: Throwable) { null }
+    }
+
+    private fun queryAppMb(ctx: Context, pkg: String, netType: Int, start: Long, end: Long): Double {
         return try {
             val nsm = ctx.getSystemService(Context.NETWORK_STATS_SERVICE) as NetworkStatsManager
-            val pm = ctx.packageManager
-            val uid = pm.getApplicationInfo(pkg, 0).uid
-            val subId: String? = try {
-                if (ActivityCompat.checkSelfPermission(ctx, Manifest.permission.READ_PHONE_STATE) == PackageManager.PERMISSION_GRANTED) {
-                    val tm = ctx.getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
-                    @Suppress("MissingPermission", "HardwareIds")
-                    tm.subscriberId
-                } else null
-            } catch (_: Throwable) { null }
+            val uid = ctx.packageManager.getApplicationInfo(pkg, 0).uid
+            val subId = if (netType == ConnectivityManager.TYPE_MOBILE) subIdOrNull(ctx) else null
             val bucket = NetworkStats.Bucket()
-            val stats = nsm.queryDetailsForUid(ConnectivityManager.TYPE_MOBILE, subId, start, end, uid)
+            val stats = nsm.queryDetailsForUid(netType, subId, start, end, uid)
             var total = 0L
             while (stats.hasNextBucket()) {
                 stats.getNextBucket(bucket)
@@ -131,13 +139,7 @@ class MetricsWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ct
     private fun queryTetheringMb(ctx: Context, start: Long, end: Long): Double {
         return try {
             val nsm = ctx.getSystemService(Context.NETWORK_STATS_SERVICE) as NetworkStatsManager
-            val subId: String? = try {
-                if (ActivityCompat.checkSelfPermission(ctx, Manifest.permission.READ_PHONE_STATE) == PackageManager.PERMISSION_GRANTED) {
-                    val tm = ctx.getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
-                    @Suppress("MissingPermission", "HardwareIds")
-                    tm.subscriberId
-                } else null
-            } catch (_: Throwable) { null }
+            val subId = subIdOrNull(ctx)
             val bucket = NetworkStats.Bucket()
             // UID_TETHERING = -5
             val stats = nsm.queryDetailsForUid(ConnectivityManager.TYPE_MOBILE, subId, start, end, -5)
