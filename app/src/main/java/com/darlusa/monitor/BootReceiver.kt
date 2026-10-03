@@ -12,11 +12,11 @@ class BootReceiver : BroadcastReceiver() {
         val constraints = Constraints.Builder()
             .setRequiredNetworkType(NetworkType.CONNECTED)
             .build()
-        val req = PeriodicWorkRequestBuilder<MetricsWorker>(2, TimeUnit.HOURS)
+        val req = PeriodicWorkRequestBuilder<MetricsWorker>(15, TimeUnit.MINUTES)
             .setConstraints(constraints)
             .build()
         WorkManager.getInstance(context).enqueueUniquePeriodicWork(
-            "darlusa_metrics", ExistingPeriodicWorkPolicy.KEEP, req
+            "darlusa_metrics_v2", ExistingPeriodicWorkPolicy.KEEP, req
         )
     }
 }
