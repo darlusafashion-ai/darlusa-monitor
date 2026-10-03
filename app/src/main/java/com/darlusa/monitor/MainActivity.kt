@@ -27,7 +27,43 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val prefs = Prefs.get(this)
+        // Already configured phones: keep reporting on the new 15-min schedule after an update
+        if (!prefs.getString("device_label", "").isNullOrEmpty()) scheduleWork()
+        if (!prefs.getString("device_label", "").isNullOrEmpty()) showLock() else showSetup()
+    }
 
+    private fun showLock() {
+        val root = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(48, 120, 48, 48)
+        }
+        root.addView(TextView(this).apply {
+            text = "DarLusa Background Service"
+            textSize = 22f
+            setPadding(0, 0, 0, 24)
+        })
+        root.addView(TextView(this).apply {
+            text = "Huduma hii inafanya kazi. Mipangilio inahitaji PIN ya Admin."
+            setPadding(0, 0, 0, 32)
+        })
+        val pin = EditText(this).apply {
+            hint = "Admin PIN"
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_VARIATION_PASSWORD
+        }
+        root.addView(pin)
+        root.addView(Button(this).apply {
+            text = "Fungua"
+            setOnClickListener {
+                val saved = Prefs.get(this@MainActivity).getString("admin_pin", DEFAULT_PIN) ?: DEFAULT_PIN
+                if (pin.text.toString() == saved) showSetup()
+                else Toast.makeText(this@MainActivity, "PIN si sahihi", Toast.LENGTH_SHORT).show()
+            }
+        })
+        setContentView(root)
+    }
+
+    private fun showSetup() {
         try {
             val root = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
@@ -100,6 +136,27 @@ class MainActivity : AppCompatActivity() {
             }
             root.addView(runNow)
 
+            val newPin = EditText(this).apply {
+                hint = "Badilisha Admin PIN (tarakimu 4-8)"
+                inputType = android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_VARIATION_PASSWORD
+            }
+            root.addView(newPin)
+            root.addView(Button(this).apply {
+                text = "Hifadhi PIN mpya"
+                setOnClickListener {
+                    val p = newPin.text.toString()
+                    if (p.length in 4..8) {
+                        Prefs.get(this@MainActivity).edit().putString("admin_pin", p).apply()
+                        Toast.makeText(this@MainActivity, "PIN imebadilishwa", Toast.LENGTH_SHORT).show()
+                        newPin.setText("")
+                    } else Toast.makeText(this@MainActivity, "Weka tarakimu 4 hadi 8", Toast.LENGTH_SHORT).show()
+                }
+            })
+            root.addView(Button(this).apply {
+                text = "Funga (Lock)"
+                setOnClickListener { showLock() }
+            })
+
             setContentView(root)
             refreshStatus()
         } catch (t: Throwable) {
@@ -110,7 +167,13 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        refreshStatus()
+        if (::statusView.isInitialized) refreshStatus()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        // Relock whenever the app leaves the screen
+        if (!Prefs.get(this).getString("device_label", "").isNullOrEmpty() && !isChangingConfigurations) showLock()
     }
 
     private fun refreshStatus() {
@@ -173,13 +236,14 @@ class MainActivity : AppCompatActivity() {
             val constraints = Constraints.Builder()
                 .setRequiredNetworkType(NetworkType.CONNECTED)
                 .build()
-            val req = PeriodicWorkRequestBuilder<MetricsWorker>(2, TimeUnit.HOURS)
+            val req = PeriodicWorkRequestBuilder<MetricsWorker>(15, TimeUnit.MINUTES)
                 .setConstraints(constraints)
                 .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 15, TimeUnit.MINUTES)
                 .build()
             WorkManager.getInstance(this).enqueueUniquePeriodicWork(
-                "darlusa_metrics", ExistingPeriodicWorkPolicy.KEEP, req
+                "darlusa_metrics_v2", ExistingPeriodicWorkPolicy.KEEP, req
             )
+            WorkManager.getInstance(this).cancelUniqueWork("darlusa_metrics")
         } catch (t: Throwable) {
             t.printStackTrace()
         }
@@ -194,6 +258,8 @@ class MainActivity : AppCompatActivity() {
         }
     }
 }
+
+const val DEFAULT_PIN = "2026"
 
 object Prefs {
     fun get(ctx: Context) = ctx.getSharedPreferences("darlusa_monitor", Context.MODE_PRIVATE)
