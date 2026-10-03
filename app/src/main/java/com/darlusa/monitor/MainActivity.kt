@@ -28,79 +28,84 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val root = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(48, 72, 48, 48)
-        }
+        try {
+            val root = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(48, 72, 48, 48)
+            }
 
-        val title = TextView(this).apply {
-            text = "DarLusa Monitor"
-            textSize = 24f
-            setPadding(0, 0, 0, 32)
-        }
-        root.addView(title)
+            val title = TextView(this).apply {
+                text = "DarLusa Monitor"
+                textSize = 24f
+                setPadding(0, 0, 0, 32)
+            }
+            root.addView(title)
 
-        val info = TextView(this).apply {
-            text = "Simu hii itatuma kila siku: muda wa kuingia Kariakoo, " +
-                    "muda na data za WhatsApp/TikTok/Snapchat/Instagram/YouTube, na matumizi ya Hotspot."
-            setPadding(0, 0, 0, 32)
-        }
-        root.addView(info)
+            val info = TextView(this).apply {
+                text = "Simu hii itatuma kila siku: muda wa kuingia Kariakoo, " +
+                        "muda na data za WhatsApp/TikTok/Snapchat/Instagram/YouTube, na matumizi ya Hotspot."
+                setPadding(0, 0, 0, 32)
+            }
+            root.addView(info)
 
-        val labelRow = TextView(this).apply { text = "Jina la mfanyakazi (device label):" }
-        root.addView(labelRow)
+            val labelRow = TextView(this).apply { text = "Jina la mfanyakazi (device label):" }
+            root.addView(labelRow)
 
-        deviceLabelInput = EditText(this).apply {
-            setText(Prefs.get(this@MainActivity).getString("device_label", "") ?: "")
-            hint = "mfano: Michael"
-        }
-        root.addView(deviceLabelInput)
+            deviceLabelInput = EditText(this).apply {
+                setText(Prefs.get(this@MainActivity).getString("device_label", "") ?: "")
+                hint = "mfano: Michael"
+            }
+            root.addView(deviceLabelInput)
 
-        statusView = TextView(this).apply {
-            setPadding(0, 32, 0, 32)
-        }
-        root.addView(statusView)
+            statusView = TextView(this).apply {
+                setPadding(0, 32, 0, 32)
+            }
+            root.addView(statusView)
 
-        val perm = Button(this).apply {
-            text = "1) Toa ruhusa (Usage Access)"
-            setOnClickListener { openUsageAccess() }
-        }
-        root.addView(perm)
+            val perm = Button(this).apply {
+                text = "1) Toa ruhusa (Usage Access)"
+                setOnClickListener { openUsageAccess() }
+            }
+            root.addView(perm)
 
-        val locPerm = Button(this).apply {
-            text = "2) Toa ruhusa ya Location"
-            setOnClickListener { requestLocation() }
-        }
-        root.addView(locPerm)
+            val locPerm = Button(this).apply {
+                text = "2) Toa ruhusa ya Location"
+                setOnClickListener { requestLocation() }
+            }
+            root.addView(locPerm)
 
-        val save = Button(this).apply {
-            text = "3) Hifadhi & Anza"
-            setOnClickListener {
-                val label = deviceLabelInput.text.toString().trim()
-                if (label.isEmpty()) {
-                    Toast.makeText(this@MainActivity, "Weka jina kwanza", Toast.LENGTH_SHORT).show()
-                } else {
-                    Prefs.get(this@MainActivity).edit().putString("device_label", label).apply()
-                    scheduleWork()
-                    runOnceNow()
-                    refreshStatus()
-                    Toast.makeText(this@MainActivity, "Imeanzishwa", Toast.LENGTH_SHORT).show()
+            val save = Button(this).apply {
+                text = "3) Hifadhi & Anza"
+                setOnClickListener {
+                    val label = deviceLabelInput.text.toString().trim()
+                    if (label.isEmpty()) {
+                        Toast.makeText(this@MainActivity, "Weka jina kwanza", Toast.LENGTH_SHORT).show()
+                    } else {
+                        Prefs.get(this@MainActivity).edit().putString("device_label", label).apply()
+                        scheduleWork()
+                        runOnceNow()
+                        refreshStatus()
+                        Toast.makeText(this@MainActivity, "Imeanzishwa", Toast.LENGTH_SHORT).show()
+                    }
                 }
             }
-        }
-        root.addView(save)
+            root.addView(save)
 
-        val runNow = Button(this).apply {
-            text = "Tuma sasa (test)"
-            setOnClickListener {
-                runOnceNow()
-                Toast.makeText(this@MainActivity, "Imetumwa, angalia dashibodi", Toast.LENGTH_SHORT).show()
+            val runNow = Button(this).apply {
+                text = "Tuma sasa (test)"
+                setOnClickListener {
+                    runOnceNow()
+                    Toast.makeText(this@MainActivity, "Imetumwa, angalia dashibodi", Toast.LENGTH_SHORT).show()
+                }
             }
-        }
-        root.addView(runNow)
+            root.addView(runNow)
 
-        setContentView(root)
-        refreshStatus()
+            setContentView(root)
+            refreshStatus()
+        } catch (t: Throwable) {
+            t.printStackTrace()
+            Toast.makeText(this, "Hitilafu: " + t.message, Toast.LENGTH_LONG).show()
+        }
     }
 
     override fun onResume() {
@@ -109,61 +114,84 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun refreshStatus() {
-        val usage = if (hasUsageAccess()) "✅" else "❌"
-        val loc = if (hasLocation()) "✅" else "❌"
-        val label = Prefs.get(this).getString("device_label", "") ?: ""
-        statusView.text = "Usage Access: $usage\nLocation: $loc\nLabel: $label"
+        try {
+            val usage = if (hasUsageAccess()) "✅" else "❌"
+            val loc = if (hasLocation()) "✅" else "❌"
+            val label = Prefs.get(this).getString("device_label", "") ?: ""
+            statusView.text = "Usage Access: $usage\nLocation: $loc\nLabel: $label"
+        } catch (_: Throwable) {}
     }
 
     private fun hasUsageAccess(): Boolean {
-        val ops = getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
-        val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            ops.unsafeCheckOpNoThrow("android:get_usage_stats", Process.myUid(), packageName)
-        } else {
-            @Suppress("DEPRECATION")
-            ops.checkOpNoThrow("android:get_usage_stats", Process.myUid(), packageName)
+        return try {
+            val ops = getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
+            val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                ops.unsafeCheckOpNoThrow("android:get_usage_stats", Process.myUid(), packageName)
+            } else {
+                @Suppress("DEPRECATION")
+                ops.checkOpNoThrow("android:get_usage_stats", Process.myUid(), packageName)
+            }
+            mode == AppOpsManager.MODE_ALLOWED
+        } catch (_: Throwable) {
+            false
         }
-        return mode == AppOpsManager.MODE_ALLOWED
     }
 
     private fun hasLocation(): Boolean {
-        return ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        return ActivityCompat.checkSelfPermission(
+            this, Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
     }
 
     private fun openUsageAccess() {
-        startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).apply {
-            data = Uri.fromParts("package", packageName, null)
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        })
+        try {
+            startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).apply {
+                data = Uri.fromParts("package", packageName, null)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            })
+        } catch (_: Throwable) {
+            try {
+                startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                })
+            } catch (e: Throwable) {
+                Toast.makeText(this, "Fungua Settings -> Apps -> Special App Access -> Usage Access", Toast.LENGTH_LONG).show()
+            }
+        }
     }
 
     private fun requestLocation() {
-        val perms = mutableListOf(
+        val perms = arrayOf(
             Manifest.permission.ACCESS_FINE_LOCATION,
             Manifest.permission.ACCESS_COARSE_LOCATION
         )
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            perms.add(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
-        }
-        ActivityCompat.requestPermissions(this, perms.toTypedArray(), 100)
+        ActivityCompat.requestPermissions(this, perms, 100)
     }
 
     private fun scheduleWork() {
-        val constraints = Constraints.Builder()
-            .setRequiredNetworkType(NetworkType.CONNECTED)
-            .build()
-        val req = PeriodicWorkRequestBuilder<MetricsWorker>(2, TimeUnit.HOURS)
-            .setConstraints(constraints)
-            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 15, TimeUnit.MINUTES)
-            .build()
-        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
-            "darlusa_metrics", ExistingPeriodicWorkPolicy.KEEP, req
-        )
+        try {
+            val constraints = Constraints.Builder()
+                .setRequiredNetworkType(NetworkType.CONNECTED)
+                .build()
+            val req = PeriodicWorkRequestBuilder<MetricsWorker>(2, TimeUnit.HOURS)
+                .setConstraints(constraints)
+                .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 15, TimeUnit.MINUTES)
+                .build()
+            WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+                "darlusa_metrics", ExistingPeriodicWorkPolicy.KEEP, req
+            )
+        } catch (t: Throwable) {
+            t.printStackTrace()
+        }
     }
 
     private fun runOnceNow() {
-        val one = OneTimeWorkRequestBuilder<MetricsWorker>().build()
-        WorkManager.getInstance(this).enqueue(one)
+        try {
+            val one = OneTimeWorkRequestBuilder<MetricsWorker>().build()
+            WorkManager.getInstance(this).enqueue(one)
+        } catch (t: Throwable) {
+            t.printStackTrace()
+        }
     }
 }
 
