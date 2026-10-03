@@ -11,8 +11,17 @@ android {
         applicationId = "com.darlusa.monitor"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.1"
+    }
+
+    signingConfigs {
+        getByName("debug") {
+            storeFile = file("darlusa.keystore")
+            storePassword = "darlusa2026"
+            keyAlias = "darlusa"
+            keyPassword = "darlusa2026"
+        }
     }
 
     buildTypes {
